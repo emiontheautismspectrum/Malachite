@@ -53,4 +53,4 @@ src/
 
 ## Data
 
-State is saved in `localStorage` under `malachite_state_v1`. On first run, data from the earlier prototype (`emerald_pegboard_state_v2`) is picked up automatically if present.
+State is saved in `localStorage` under `malachite_state_v1`.
