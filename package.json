@@ -1,0 +1,26 @@
+{
+  "name": "malachite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Malachite — node-based daily planner on an emerald pegboard",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "build:single": "tsc --noEmit && cross-env SINGLE_FILE=1 vite build"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.6.2",
+    "cross-env": "^10.1.0",
+    "postcss": "^8.5.33",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.6",
+    "vite-plugin-singlefile": "^2.3.4"
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0"
+  }
+}

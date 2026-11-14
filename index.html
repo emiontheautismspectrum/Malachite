@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Malachite — Нодовый планировщик по дням</title>
+</head>
+<body>
+  <!-- Верхняя панель управления -->
+  <header class="glass-bar h-16 px-3 sm:px-5 flex items-center justify-between gap-2 relative z-50">
+    <!-- Логотип и название -->
+    <div class="flex items-center gap-2.5 shrink-0">
+      <div class="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm"
+           style="background: linear-gradient(135deg, var(--accent-lime), var(--accent-emerald)); color: var(--accent-text-dark);">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="6" cy="6" r="2" fill="currentColor"/>
+          <circle cx="18" cy="6" r="2" fill="currentColor"/>
+          <circle cx="6" cy="18" r="2" fill="currentColor"/>
+          <circle cx="18" cy="18" r="2" fill="currentColor"/>
+          <path d="M8 6h8M6 8v8M18 8v8M8 18h8" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div class="hidden md:block">
+        <div class="text-sm font-bold tracking-tight leading-tight">Malachite</div>
+        <div class="text-[11px]" style="color: var(--text-secondary);">Доска задач и проектов</div>
+      </div>
+    </div>
+
+    <!-- Лента выбора дня -->
+    <div class="flex items-center justify-center gap-1.5 py-1 min-w-0 flex-1">
+      <button id="prev-day-btn" class="btn-ghost px-2 py-1.5 text-xs shrink-0" title="Предыдущий день">◀</button>
+      <div id="date-strip" class="flex items-center gap-1.5 min-w-0 overflow-x-auto no-scrollbar"></div>
+      <button id="next-day-btn" class="btn-ghost px-2 py-1.5 text-xs shrink-0" title="Следующий день">▶</button>
+      <label class="btn-ghost px-2.5 py-1.5 text-xs cursor-pointer flex items-center gap-1.5 shrink-0" title="Выбрать дату">
+        <span>📅</span>
+        <input id="date-picker-input" type="date" class="bg-transparent text-xs outline-none w-24 cursor-pointer" style="color: var(--text-primary);" />
+      </label>
+    </div>
+
+    <!-- Инструменты доски -->
+    <div class="flex items-center gap-1.5 shrink-0">
+      <button id="add-node-btn" class="btn-primary px-3 py-1.5 text-xs flex items-center gap-1 shadow-sm">
+        <span>+ Нода</span>
+      </button>
+      <button id="add-project-btn" class="btn-ghost px-2.5 py-1.5 text-xs flex items-center gap-1 font-medium">
+        <span>+ Проект</span>
+      </button>
+      <button id="manage-categories-btn" class="btn-ghost px-2.5 py-1.5 text-xs hidden sm:flex items-center gap-1">
+        <span>Зоны / Категории</span>
+      </button>
+      <button id="connect-mode-btn" class="btn-ghost px-2.5 py-1.5 text-xs hidden lg:flex items-center gap-1" title="Режим соединения нод">
+        <span>🔗 Связать</span>
+      </button>
+      <button id="snap-grid-btn" class="btn-ghost active px-2.5 py-1.5 text-xs hidden lg:flex items-center gap-1" title="Привязка к шагу пегборда 24px">
+        <span>⊞ Сетка</span>
+      </button>
+
+      <!-- Зум -->
+      <div class="hidden xl:flex items-center border rounded-xl overflow-hidden" style="border-color: var(--border-subtle);">
+        <button id="zoom-out-btn" class="px-2 py-1.5 text-xs hover:bg-emerald-500/10">−</button>
+        <button id="zoom-reset-btn" class="px-2 py-1.5 text-xs font-medium hover:bg-emerald-500/10">100%</button>
+        <button id="zoom-in-btn" class="px-2 py-1.5 text-xs hover:bg-emerald-500/10">+</button>
+      </div>
+
+      <!-- Экспорт / Импорт / Тема -->
+      <button id="backup-btn" class="btn-ghost px-2.5 py-1.5 text-xs hidden sm:inline-flex" title="Экспорт / Импорт JSON">💾</button>
+      <button id="theme-toggle-btn" class="btn-ghost px-2.5 py-1.5 text-xs" title="Переключить тему">☀️</button>
+    </div>
+  </header>
+
+  <!-- Основной холст пегборда -->
+  <main id="viewport">
+    <div id="pegboard-grid"></div>
+
+    <!-- Подсказка внизу слева -->
+    <div class="fixed bottom-3 left-3 z-40 px-3 py-1.5 rounded-xl text-[11px] flex items-center gap-3 pointer-events-none"
+         style="background: var(--surface-bar); border: 1px solid var(--border-subtle); color: var(--text-secondary);">
+      <span>Двойной клик по доске — новая нода</span>
+      <span class="hidden sm:inline">•</span>
+      <span class="hidden sm:inline">Перетащите ноду на проект, чтобы привязать</span>
+    </div>
+
+    <!-- Контейнер трансформации (Pan & Zoom) -->
+    <div id="canvas-world">
+      <svg id="wires-layer"></svg>
+      <div id="zones-layer"></div>
+      <div id="projects-layer"></div>
+      <div id="nodes-layer"></div>
+    </div>
+  </main>
+
+  <!-- Модальное окно управления категориями и зонами -->
+  <div id="categories-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 shadow-2xl" style="background: var(--surface-card); border: 1px solid var(--border-strong);">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-base font-bold">Категории и магнитные зоны</h2>
+        <button id="close-categories-modal" class="btn-ghost px-2.5 py-1 text-xs">✕</button>
+      </div>
+      <p class="text-xs mb-4" style="color: var(--text-secondary);">
+        Создавайте свои категории и добавляйте их на доску выбранного дня как магнитные зоны-контейнеры.
+      </p>
+
+      <!-- Форма добавления категории -->
+      <div class="flex items-center gap-2 mb-4">
+        <input id="new-cat-name" type="text" placeholder="Название (например: Дизайн)" class="field-input flex-1 px-3 py-2 text-xs" />
+        <input id="new-cat-color" type="color" value="#4ade80" class="w-9 h-9 rounded-lg cursor-pointer bg-transparent border-0" />
+        <button id="create-cat-btn" class="btn-primary px-3 py-2 text-xs">Добавить</button>
+      </div>
+
+      <!-- Список категорий -->
+      <div id="categories-list" class="space-y-2 max-h-64 overflow-y-auto pr-1"></div>
+    </div>
+  </div>
+
+  <!-- Модальное окно экспорта / импорта -->
+  <div id="backup-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="w-full max-w-md rounded-2xl p-5 shadow-2xl" style="background: var(--surface-card); border: 1px solid var(--border-strong);">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-base font-bold">Резервная копия (JSON)</h2>
+        <button id="close-backup-modal" class="btn-ghost px-2.5 py-1 text-xs">✕</button>
+      </div>
+      <p class="text-xs mb-3" style="color: var(--text-secondary);">
+        Сохраните состояние всех дней и проектов в файл или восстановите из ранее сохранённого JSON.
+      </p>
+      <div class="flex gap-2 mb-3">
+        <button id="export-json-btn" class="btn-primary flex-1 py-2 text-xs">Скачать JSON</button>
+        <label class="btn-ghost flex-1 py-2 text-xs text-center cursor-pointer">
+          Загрузить JSON
+          <input id="import-json-input" type="file" accept=".json" class="hidden" />
+        </label>
+      </div>
+      <button id="reset-demo-btn" class="w-full py-2 text-xs rounded-xl border border-red-500/30 text-red-400 hover:bg-red-500/10">
+        Сбросить к демо-данным
+      </button>
+    </div>
+  </div>
+
+  <!-- Всплывающее уведомление (Toast с кнопкой Undo) -->
+  <div id="toast-box" class="fixed bottom-4 right-4 z-50 hidden items-center gap-3 px-4 py-2.5 rounded-xl shadow-xl text-xs font-medium"
+       style="background: var(--surface-card); border: 1px solid var(--accent-lime); color: var(--text-primary);">
+    <span id="toast-message"></span>
+    <button id="toast-undo-btn" class="hidden px-2.5 py-1 rounded-lg font-semibold"
+            style="background: var(--accent-lime); color: var(--accent-text-dark);">Отменить</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
